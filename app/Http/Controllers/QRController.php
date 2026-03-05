@@ -1,0 +1,81 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+use Illuminate\Support\Str;
+use SimpleSoftwareIO\QrCode\Facades\QrCode;
+
+class QRController extends Controller {
+    public function index() {
+        return view('qr.index');
+    }
+
+    public function generate(Request $request) {
+        $request->validate([
+            'data'     => 'required|string',
+            'color'    => ['nullable', 'string', 'regex:/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/'],
+            'bg_color' => ['nullable', 'string', 'regex:/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/'],
+        ]);
+
+        $data = $request->data;
+        $color = $request->input('color', '#000000');
+        $bgColor = $request->input('bg_color', '#ffffff');
+
+        // Helper function to convert hex to RGB
+        $hexToRgb = function ($hex) {
+            $hex = str_replace('#', '', $hex);
+            if (strlen($hex) == 3) {
+                $r = hexdec(substr($hex, 0, 1) . substr($hex, 0, 1));
+                $g = hexdec(substr($hex, 1, 1) . substr($hex, 1, 1));
+                $b = hexdec(substr($hex, 2, 1) . substr($hex, 2, 1));
+            } else {
+                $r = hexdec(substr($hex, 0, 2));
+                $g = hexdec(substr($hex, 2, 2));
+                $b = hexdec(substr($hex, 4, 2));
+            }
+            return [$r, $g, $b];
+        };
+
+        [$r, $g, $b] = $hexToRgb($color);
+        [$bg_r, $bg_g, $bg_b] = $hexToRgb($bgColor);
+
+        // Generate QR code with colors
+        $qrCodeSvg = QrCode::size(300)
+            ->color($r, $g, $b)
+            ->backgroundColor($bg_r, $bg_g, $bg_b)
+            ->generate($data);
+
+        // Generate unique filename
+        $fileName = 'qr_' . Str::random(6) . '.svg';
+        $filePath = public_path('qrcodes/' . $fileName);
+
+        // Make sure directory exists
+        if (! file_exists(public_path('qrcodes'))) {
+            mkdir(public_path('qrcodes'), 0777, true);
+        }
+
+        // Save the QR code SVG file
+        file_put_contents($filePath, $qrCodeSvg);
+
+        return view('qr.index', [
+            'qrCode'   => $qrCodeSvg,
+            'fileName' => $fileName,
+            'data'     => $data,
+            'color'    => $color,
+            'bg_color' => $bgColor,
+        ]);
+    }
+
+    public function download($fileName) {
+        $filePath = public_path('qrcodes/' . $fileName);
+
+        if (! file_exists($filePath)) {
+            abort(404, 'QR Code not found.');
+        }
+
+        return response()->download($filePath, 'qrcode.svg', [
+            'Content-Type' => 'image/svg+xml',
+        ]);
+    }
+}
