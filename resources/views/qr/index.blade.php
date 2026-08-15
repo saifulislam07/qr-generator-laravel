@@ -444,6 +444,32 @@
             transform: translateY(0);
         }
 
+        /* Download buttons */
+        .download-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        .btn-download.is-secondary {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            color: var(--text-secondary);
+        }
+
+        .btn-download.is-secondary:hover {
+            border-color: rgba(255, 255, 255, 0.35);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+            color: var(--text-primary);
+        }
+
+        .btn-download[disabled] {
+            opacity: 0.6;
+            cursor: progress;
+            transform: none;
+        }
+
         /* Validation errors */
         .error-list {
             list-style: none;
@@ -598,10 +624,10 @@
 
                 <div class="qr-result">
                     <div class="qr-result-label">Your QR Code</div>
-                    <div class="qr-preview" style="background: {{ $bg_color ?? '#ffffff' }}">
+                    <div class="qr-preview" id="qr-preview" style="background: {{ $bg_color ?? '#ffffff' }}">
                         {!! $qrCode !!}
                     </div>
-                    <div>
+                    <div class="download-actions">
                         <a href="{{ route('qr.download', $fileName) }}" class="btn-download">
                             <svg viewBox="0 0 24 24">
                                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -610,6 +636,14 @@
                             </svg>
                             Download SVG
                         </a>
+                        <button type="button" class="btn-download is-secondary" id="btn-download-png" onclick="downloadPng(this)">
+                            <svg viewBox="0 0 24 24">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                <polyline points="7 10 12 15 17 10"/>
+                                <line x1="12" y1="15" x2="12" y2="3"/>
+                            </svg>
+                            Download PNG
+                        </button>
                     </div>
                 </div>
             @endisset
@@ -625,6 +659,55 @@
             const wrapper = input.closest('.color-picker-wrapper');
             const hexLabel = wrapper.querySelector('.color-hex');
             hexLabel.textContent = input.value.toUpperCase();
+        }
+
+        /* Side of the exported PNG, in pixels. The QR is vector on the page, so
+           this can be raised freely for print without touching the server. */
+        const PNG_SIZE = 2000;
+
+        /* Rasterise the inline SVG through a canvas. Doing it here keeps the PNG
+           export working without the imagick extension the server would need. */
+        function downloadPng(button) {
+            const svg = document.querySelector('#qr-preview svg');
+            if (!svg) return;
+
+            const clone = svg.cloneNode(true);
+            clone.setAttribute('width', PNG_SIZE);
+            clone.setAttribute('height', PNG_SIZE);
+            clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+
+            // btoa() is latin1-only, so widen the markup to bytes before encoding.
+            const source = new XMLSerializer().serializeToString(clone);
+            const bytes = new TextEncoder().encode(source);
+            const binary = Array.from(bytes, byte => String.fromCharCode(byte)).join('');
+
+            button.disabled = true;
+
+            const image = new Image();
+
+            image.onload = function () {
+                const canvas = document.createElement('canvas');
+                canvas.width = PNG_SIZE;
+                canvas.height = PNG_SIZE;
+                canvas.getContext('2d').drawImage(image, 0, 0, PNG_SIZE, PNG_SIZE);
+
+                canvas.toBlob(function (blob) {
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = 'qrcode.png';
+                    link.click();
+                    URL.revokeObjectURL(url);
+                    button.disabled = false;
+                }, 'image/png');
+            };
+
+            image.onerror = function () {
+                button.disabled = false;
+                alert('Could not build the PNG. Please use the SVG download instead.');
+            };
+
+            image.src = 'data:image/svg+xml;base64,' + btoa(binary);
         }
     </script>
 </body>

@@ -9,3 +9,22 @@
 /.github export-ignore
 CHANGELOG.md export-ignore
 .styleci.yml export-ignore
+
+# Demo application scaffolding — not part of the published package
+/app export-ignore
+/bootstrap export-ignore
+/config export-ignore
+/database export-ignore
+/public export-ignore
+/resources export-ignore
+/routes export-ignore
+/storage export-ignore
+/tests export-ignore
+/artisan export-ignore
+/index.php export-ignore
+/phpunit.xml export-ignore
+/package.json export-ignore
+/vite.config.js export-ignore
+/.env.example export-ignore
+/.editorconfig export-ignore
+/.htaccess export-ignore

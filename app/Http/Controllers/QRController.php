@@ -7,6 +7,20 @@ use Illuminate\Support\Str;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class QRController extends Controller {
+    /**
+     * Nominal pixel size of the generated QR code. The output is SVG, so this
+     * does not enlarge the file meaningfully -- it sets the natural size other
+     * tools rasterize it at, which is what keeps the image from looking blocky
+     * when it is placed in a document or printed.
+     */
+    protected const SIZE = 1000;
+
+    /** Quiet zone around the code, in modules. The QR spec needs one to scan reliably. */
+    protected const MARGIN = 1;
+
+    /** Error correction level: M recovers ~15% damage, vs ~7% for the L default. */
+    protected const ERROR_CORRECTION = 'M';
+
     public function index() {
         return view('qr.index');
     }
@@ -41,7 +55,9 @@ class QRController extends Controller {
         [$bg_r, $bg_g, $bg_b] = $hexToRgb($bgColor);
 
         // Generate QR code with colors
-        $qrCodeSvg = QrCode::size(300)
+        $qrCodeSvg = QrCode::size(self::SIZE)
+            ->margin(self::MARGIN)
+            ->errorCorrection(self::ERROR_CORRECTION)
             ->color($r, $g, $b)
             ->backgroundColor($bg_r, $bg_g, $bg_b)
             ->generate($data);
