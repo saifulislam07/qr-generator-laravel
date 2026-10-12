@@ -83,15 +83,18 @@ class QRController extends Controller {
 
         // Generate unique filename
         $fileName = 'qr_' . Str::random(6) . '.svg';
-        $filePath = public_path('qrcodes/' . $fileName);
 
-        // Make sure directory exists
-        if (! file_exists(public_path('qrcodes'))) {
-            mkdir(public_path('qrcodes'), 0777, true);
+        // Best-effort copy on disk; skipped on read-only hosts (e.g. Vercel).
+        // The SVG download button uses an inline data URI, so it doesn't depend on this.
+        try {
+            $dir = public_path('qrcodes');
+            if (! is_dir($dir)) {
+                mkdir($dir, 0777, true);
+            }
+            file_put_contents($dir . '/' . $fileName, $qrCodeSvg);
+        } catch (\Throwable $e) {
+            // ignore
         }
-
-        // Save the QR code SVG file
-        file_put_contents($filePath, $qrCodeSvg);
 
         return view('qr.index', [
             'qrCode'   => $qrCodeSvg,

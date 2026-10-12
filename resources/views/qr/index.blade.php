@@ -656,7 +656,7 @@
                         {!! $qrCode !!}
                     </div>
                     <div class="download-actions">
-                        <a href="{{ route('qr.download', $fileName) }}" class="btn-download">
+                        <a href="data:image/svg+xml;base64,{{ base64_encode((string) $qrCode) }}" download="qrcode.svg" class="btn-download">
                             <svg viewBox="0 0 24 24">
                                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                                 <polyline points="7 10 12 15 17 10"/>
