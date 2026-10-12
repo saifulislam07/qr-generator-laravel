@@ -30,11 +30,19 @@ class QRController extends Controller {
             'data'     => 'required|string',
             'color'    => ['nullable', 'string', 'regex:/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/'],
             'bg_color' => ['nullable', 'string', 'regex:/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/'],
+            'transparent' => ['nullable', 'boolean'],
+            'custom_eyes' => ['nullable', 'boolean'],
+            'eye_color'       => ['nullable', 'string', 'regex:/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/'],
+            'eye_inner_color' => ['nullable', 'string', 'regex:/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/'],
         ]);
 
         $data = $request->data;
         $color = $request->input('color', '#000000');
         $bgColor = $request->input('bg_color', '#ffffff');
+        $transparent = $request->boolean('transparent');
+        $customEyes = $request->boolean('custom_eyes');
+        $eyeColor = $request->input('eye_color', $color);
+        $eyeInnerColor = $request->input('eye_inner_color', $color);
 
         // Helper function to convert hex to RGB
         $hexToRgb = function ($hex) {
@@ -55,12 +63,23 @@ class QRController extends Controller {
         [$bg_r, $bg_g, $bg_b] = $hexToRgb($bgColor);
 
         // Generate QR code with colors
-        $qrCodeSvg = QrCode::size(self::SIZE)
+        $qr = QrCode::size(self::SIZE)
             ->margin(self::MARGIN)
             ->errorCorrection(self::ERROR_CORRECTION)
             ->color($r, $g, $b)
-            ->backgroundColor($bg_r, $bg_g, $bg_b)
-            ->generate($data);
+            ->backgroundColor($bg_r, $bg_g, $bg_b, $transparent ? 0 : null);
+
+        // Optionally recolor the three corner "eyes" (outer frame + inner square)
+        if ($customEyes) {
+            [$er, $eg, $eb] = $hexToRgb($eyeColor);
+            [$ir, $ig, $ib] = $hexToRgb($eyeInnerColor);
+
+            foreach ([0, 1, 2] as $eye) {
+                $qr->eyeColor($eye, $ir, $ig, $ib, $er, $eg, $eb);
+            }
+        }
+
+        $qrCodeSvg = $qr->generate($data);
 
         // Generate unique filename
         $fileName = 'qr_' . Str::random(6) . '.svg';
@@ -80,6 +99,10 @@ class QRController extends Controller {
             'data'     => $data,
             'color'    => $color,
             'bg_color' => $bgColor,
+            'transparent' => $transparent,
+            'custom_eyes' => $customEyes,
+            'eye_color' => $eyeColor,
+            'eye_inner_color' => $eyeInnerColor,
         ]);
     }
 

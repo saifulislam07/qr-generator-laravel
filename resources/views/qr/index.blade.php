@@ -603,6 +603,34 @@
                             </div>
                         </div>
                     </div>
+                    <label style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:13px;color:var(--text-muted);cursor:pointer;">
+                        <input type="checkbox" name="transparent" id="transparent" value="1" {{ !empty($transparent) ? 'checked' : '' }}>
+                        Transparent background
+                    </label>
+                    <label style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:13px;color:var(--text-muted);cursor:pointer;">
+                        <input type="checkbox" name="custom_eyes" id="custom_eyes" value="1" {{ !empty($custom_eyes) ? 'checked' : '' }} onchange="document.getElementById('eye-colors').style.display = this.checked ? '' : 'none'">
+                        Custom corner (eye) colors
+                    </label>
+                    <div class="color-row" id="eye-colors" style="margin-top:12px;{{ !empty($custom_eyes) ? '' : 'display:none' }}">
+                        <div class="color-group">
+                            <div class="color-picker-wrapper" onclick="this.querySelector('input').click()">
+                                <input type="color" name="eye_color" id="eye_color" class="color-input" value="{{ $eye_color ?? '#000000' }}" oninput="updateHex(this)">
+                                <div>
+                                    <div style="font-size:11px;color:var(--text-muted);margin-bottom:2px;">Corner frame</div>
+                                    <span class="color-hex">{{ $eye_color ?? '#000000' }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="color-group">
+                            <div class="color-picker-wrapper" onclick="this.querySelector('input').click()">
+                                <input type="color" name="eye_inner_color" id="eye_inner_color" class="color-input" value="{{ $eye_inner_color ?? '#000000' }}" oninput="updateHex(this)">
+                                <div>
+                                    <div style="font-size:11px;color:var(--text-muted);margin-bottom:2px;">Corner center</div>
+                                    <span class="color-hex">{{ $eye_inner_color ?? '#000000' }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="btn-row">
@@ -624,7 +652,7 @@
 
                 <div class="qr-result">
                     <div class="qr-result-label">Your QR Code</div>
-                    <div class="qr-preview" id="qr-preview" style="background: {{ $bg_color ?? '#ffffff' }}">
+                    <div class="qr-preview" id="qr-preview" style="{{ !empty($transparent) ? 'background: repeating-conic-gradient(#d9d9e3 0% 25%, #ffffff 0% 50%) 50% / 20px 20px' : 'background: ' . ($bg_color ?? '#ffffff') }}">
                         {!! $qrCode !!}
                     </div>
                     <div class="download-actions">
