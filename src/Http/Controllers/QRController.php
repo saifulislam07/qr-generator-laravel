@@ -5,6 +5,10 @@ namespace Saifulislam07\QrGenerator\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
+use Picqer\Barcode\Exceptions\BarcodeException;
+use Saifulislam07\QrGenerator\BarcodeSvg;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class QRController extends Controller {
@@ -41,12 +45,22 @@ class QRController extends Controller {
             'custom_eyes' => ['nullable', 'boolean'],
             'eye_color'       => ['nullable', 'string', 'regex:/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/'],
             'eye_inner_color' => ['nullable', 'string', 'regex:/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/'],
+            'type'           => ['nullable', Rule::in(['qr', 'barcode'])],
+            'barcode_format' => ['nullable', Rule::in(array_keys(BarcodeSvg::FORMATS))],
+            'show_text'      => ['nullable', 'boolean'],
         ]);
 
-        $data = $request->data;
+        // Browsers submit textarea line breaks as \r\n; normalize to \n so
+        // multi-line content encodes consistently.
+        $data = str_replace(["\r\n", "\r"], "\n", $request->data);
         $color = $request->input('color', '#000000');
         $bgColor = $request->input('bg_color', '#ffffff');
         $transparent = $request->boolean('transparent');
+
+        if ($request->input('type') === 'barcode') {
+            return $this->generateBarcode($request, $data, $color, $transparent ? null : $bgColor);
+        }
+
         $customEyes = $request->boolean('custom_eyes');
         $eyeColor = $request->input('eye_color', $color);
         $eyeInnerColor = $request->input('eye_inner_color', $color);
@@ -73,21 +87,10 @@ class QRController extends Controller {
 
         $qrCodeSvg = $qr->generate($data);
 
-        // Generate unique filename
-        $fileName = 'qr_' . Str::random(6) . '.svg';
-        $filePath = public_path('qrcodes/' . $fileName);
-
-        // Make sure directory exists
-        if (! file_exists(public_path('qrcodes'))) {
-            mkdir(public_path('qrcodes'), 0777, true);
-        }
-
-        // Save the QR code SVG file
-        file_put_contents($filePath, $qrCodeSvg);
-
         return view('qr-generator::index', [
+            'type'     => 'qr',
             'qrCode'   => $qrCodeSvg,
-            'fileName' => $fileName,
+            'fileName' => $this->storeSvg('qr', $qrCodeSvg),
             'data'     => $data,
             'color'    => $color,
             'bg_color' => $bgColor,
@@ -99,16 +102,70 @@ class QRController extends Controller {
     }
 
     /**
-     * Download the generated QR code file.
+     * Generate a 1D barcode with custom colors.
+     */
+    protected function generateBarcode(Request $request, string $data, string $color, ?string $bgColor) {
+        $format = $request->input('barcode_format', 'code128');
+        $showText = $request->boolean('show_text');
+
+        // Barcodes are a single row of bars; there is no way to encode a line break.
+        if (str_contains($data, "\n")) {
+            throw ValidationException::withMessages([
+                'data' => 'Barcodes can only hold a single line. Remove the line breaks or switch to QR Code.',
+            ]);
+        }
+
+        try {
+            $svg = BarcodeSvg::render($data, $format, $color, $bgColor, $showText);
+        } catch (BarcodeException $e) {
+            $spec = BarcodeSvg::FORMATS[$format];
+
+            throw ValidationException::withMessages([
+                'data' => "This content can't be encoded as {$spec['label']}. It accepts: {$spec['hint']}.",
+            ]);
+        }
+
+        return view('qr-generator::index', [
+            'type'           => 'barcode',
+            'barcode_format' => $format,
+            'show_text'      => $showText,
+            'qrCode'         => $svg,
+            'fileName'       => $this->storeSvg('barcode', $svg),
+            'data'           => $data,
+            'color'          => $color,
+            'bg_color'       => $request->input('bg_color', '#ffffff'),
+            'transparent'    => $bgColor === null,
+        ]);
+    }
+
+    /**
+     * Save the SVG under public/qrcodes and return its file name.
+     */
+    protected function storeSvg(string $prefix, string $svg): string {
+        $fileName = $prefix . '_' . Str::random(6) . '.svg';
+
+        if (! file_exists(public_path('qrcodes'))) {
+            mkdir(public_path('qrcodes'), 0777, true);
+        }
+
+        file_put_contents(public_path('qrcodes/' . $fileName), $svg);
+
+        return $fileName;
+    }
+
+    /**
+     * Download a generated QR code or barcode file.
      */
     public function download($fileName) {
         $filePath = public_path('qrcodes/' . $fileName);
 
         if (! file_exists($filePath)) {
-            abort(404, 'QR Code not found.');
+            abort(404, 'File not found.');
         }
 
-        return response()->download($filePath, 'qrcode.svg', [
+        $downloadName = str_starts_with($fileName, 'barcode_') ? 'barcode.svg' : 'qrcode.svg';
+
+        return response()->download($filePath, $downloadName, [
             'Content-Type' => 'image/svg+xml',
         ]);
     }
