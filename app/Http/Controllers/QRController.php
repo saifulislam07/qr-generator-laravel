@@ -150,11 +150,17 @@ class QRController extends Controller {
     protected function storeSvg(string $prefix, string $svg): string {
         $fileName = $prefix . '_' . Str::random(6) . '.svg';
 
-        if (! file_exists(public_path('qrcodes'))) {
-            mkdir(public_path('qrcodes'), 0777, true);
+        // Best-effort copy on disk; skipped on read-only hosts (e.g. Vercel).
+        // The download buttons use an inline data URI, so they don't depend on this.
+        try {
+            $dir = public_path('qrcodes');
+            if (! is_dir($dir)) {
+                mkdir($dir, 0777, true);
+            }
+            file_put_contents($dir . '/' . $fileName, $svg);
+        } catch (\Throwable $e) {
+            // ignore
         }
-
-        file_put_contents(public_path('qrcodes/' . $fileName), $svg);
 
         return $fileName;
     }

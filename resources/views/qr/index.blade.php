@@ -11,8 +11,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QR Code Generator</title>
-    <meta name="description" content="Generate beautiful, custom-colored QR codes instantly. Free online QR code generator with color customization.">
+    <title>QR Code &amp; Barcode Generator — Free, Custom Colors</title>
+    <meta name="description" content="Create custom colored QR codes and barcodes in seconds. Free online generator with SVG and PNG download.">
+    <link rel="canonical" href="{{ url('/') }}">
+
+    <!-- Link preview (Facebook, WhatsApp, Messenger, LinkedIn) -->
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="QR Code &amp; Barcode Generator">
+    <meta property="og:title" content="QR Code &amp; Barcode Generator">
+    <meta property="og:description" content="Create custom colored QR codes and barcodes in seconds. Free, with SVG and PNG download.">
+    <meta property="og:url" content="{{ url('/') }}">
+    <meta property="og:image" content="{{ url('/images/og-image.png') }}">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="QR Code &amp; Barcode Generator preview">
+
+    <!-- Twitter / X -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="QR Code &amp; Barcode Generator">
+    <meta name="twitter:description" content="Create custom colored QR codes and barcodes in seconds. Free, with SVG and PNG download.">
+    <meta name="twitter:image" content="{{ url('/images/og-image.png') }}">
+    <meta name="theme-color" content="#0a0a14">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
