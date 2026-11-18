@@ -15,8 +15,9 @@
     "require": {
         "php": "^8.2",
         "laravel/framework": "^12.0",
-        "illuminate/support": "^10.0|^11.0|^12.0",
         "illuminate/routing": "^10.0|^11.0|^12.0",
+        "illuminate/support": "^10.0|^11.0|^12.0",
+        "picqer/php-barcode-generator": "^3.0",
         "simplesoftwareio/simple-qrcode": "^4.2"
     },
     "require-dev": {

@@ -184,6 +184,82 @@
             outline: none;
         }
 
+        /* Code type switch (QR / Barcode) */
+        .type-switch {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            padding: 5px;
+            margin-bottom: 20px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+        }
+
+        .type-switch label {
+            position: relative;
+        }
+
+        .type-switch input {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .type-switch span {
+            display: block;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .type-switch input:checked + span {
+            background: var(--gradient-1);
+            color: #fff;
+        }
+
+        .type-switch input:focus-visible + span {
+            outline: 2px solid var(--accent-secondary);
+            outline-offset: 2px;
+        }
+
+        select.form-input {
+            appearance: none;
+            cursor: pointer;
+            padding-right: 44px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239394a5' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 16px center;
+            background-size: 18px;
+        }
+
+        select.form-input option {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+
+        .form-hint {
+            margin-top: 8px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .qr-preview.is-barcode svg {
+            width: min(340px, 68vw) !important;
+            height: auto !important;
+        }
+
+        .form-textarea {
+            min-height: 110px;
+            line-height: 1.5;
+            resize: vertical;
+        }
+
         .form-input::placeholder {
             color: var(--text-muted);
         }
@@ -551,8 +627,8 @@
                     <path d="M3 3h8v8H3V3zm2 2v4h4V5H5zm8-2h8v8h-8V3zm2 2v4h4V5h-4zM3 13h8v8H3v-8zm2 2v4h4v-4H5zm11-2h2v2h-2v-2zm-4 0h2v2h-2v-2zm8 0h2v2h-2v-2zm-4 4h2v2h-2v-2zm4 0h2v2h-2v-2zm-4 4h2v2h-2v-2zm4 0h2v2h-2v-2z"/>
                 </svg>
             </div>
-            <h1>QR Code Generator</h1>
-            <p>Create custom colored QR codes in seconds</p>
+            <h1>QR Code &amp; Barcode Generator</h1>
+            <p>Create custom colored QR codes and barcodes in seconds</p>
         </header>
 
         <!-- Generator Card -->
@@ -568,17 +644,48 @@
             <form method="POST" action="{{ route('qr.generate') }}" id="qr-form">
                 @csrf
 
+                @php
+                    $currentType = $type ?? old('type', 'qr');
+                    $currentFormat = $barcode_format ?? old('barcode_format', 'code128');
+                    $showText = $show_text ?? (old('type') ? (bool) old('show_text') : true);
+                    $formats = \Saifulislam07\QrGenerator\BarcodeSvg::FORMATS;
+                @endphp
+
+                <div class="type-switch" role="radiogroup" aria-label="Code type">
+                    <label>
+                        <input type="radio" name="type" value="qr" {{ $currentType === 'qr' ? 'checked' : '' }} onchange="setType(this.value)">
+                        <span>QR Code</span>
+                    </label>
+                    <label>
+                        <input type="radio" name="type" value="barcode" {{ $currentType === 'barcode' ? 'checked' : '' }} onchange="setType(this.value)">
+                        <span>Barcode</span>
+                    </label>
+                </div>
+
                 <div class="form-group">
                     <label for="data" class="form-label">Content</label>
-                    <input
-                        type="text"
+                    <textarea
                         name="data"
                         id="data"
-                        class="form-input"
-                        placeholder="Enter text, URL, or any data..."
+                        class="form-input form-textarea"
+                        rows="4"
+                        placeholder="Enter text, URL, or any data...&#10;Multiple lines are supported."
                         required
-                        value="{{ $data ?? old('data') }}"
-                    >
+                    >{{ $data ?? old('data') }}</textarea>
+                </div>
+
+                <div class="form-group" id="barcode-options">
+                    <label for="barcode_format" class="form-label">Barcode format</label>
+                    <select name="barcode_format" id="barcode_format" class="form-input" onchange="updateFormatHint()">
+                        @foreach ($formats as $key => $spec)
+                            <option value="{{ $key }}" data-hint="{{ $spec['hint'] }}" {{ $currentFormat === $key ? 'selected' : '' }}>{{ $spec['label'] }}</option>
+                        @endforeach
+                    </select>
+                    <div class="form-hint" id="format-hint"></div>
+                    <label style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:13px;color:var(--text-muted);cursor:pointer;">
+                        <input type="checkbox" name="show_text" id="show_text" value="1" {{ $showText ? 'checked' : '' }}>
+                        Show text below the barcode
+                    </label>
                 </div>
 
                 <div class="form-group">
@@ -607,7 +714,7 @@
                         <input type="checkbox" name="transparent" id="transparent" value="1" {{ !empty($transparent) ? 'checked' : '' }}>
                         Transparent background
                     </label>
-                    <label style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:13px;color:var(--text-muted);cursor:pointer;">
+                    <label id="custom-eyes-option" style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:13px;color:var(--text-muted);cursor:pointer;">
                         <input type="checkbox" name="custom_eyes" id="custom_eyes" value="1" {{ !empty($custom_eyes) ? 'checked' : '' }} onchange="document.getElementById('eye-colors').style.display = this.checked ? '' : 'none'">
                         Custom corner (eye) colors
                     </label>
@@ -635,7 +742,7 @@
 
                 <div class="btn-row">
                     <button type="submit" class="btn-generate" id="btn-generate">
-                        ✦ Generate QR Code
+                        ✦ Generate <span id="btn-generate-label">QR Code</span>
                     </button>
                     <a href="{{ url('/') }}" class="btn-reset" title="Reset">
                         <svg viewBox="0 0 24 24">
@@ -651,8 +758,8 @@
                 <div class="result-divider"></div>
 
                 <div class="qr-result">
-                    <div class="qr-result-label">Your QR Code</div>
-                    <div class="qr-preview" id="qr-preview" style="{{ !empty($transparent) ? 'background: repeating-conic-gradient(#d9d9e3 0% 25%, #ffffff 0% 50%) 50% / 20px 20px' : 'background: ' . ($bg_color ?? '#ffffff') }}">
+                    <div class="qr-result-label">Your {{ ($type ?? 'qr') === 'barcode' ? 'Barcode' : 'QR Code' }}</div>
+                    <div class="qr-preview {{ ($type ?? 'qr') === 'barcode' ? 'is-barcode' : '' }}" id="qr-preview" style="{{ !empty($transparent) ? 'background: repeating-conic-gradient(#d9d9e3 0% 25%, #ffffff 0% 50%) 50% / 20px 20px' : 'background: ' . ($bg_color ?? '#ffffff') }}">
                         {!! $qrCode !!}
                     </div>
                     <div class="download-actions">
@@ -689,9 +796,34 @@
             hexLabel.textContent = input.value.toUpperCase();
         }
 
-        /* Side of the exported PNG, in pixels. The QR is vector on the page, so
-           this can be raised freely for print without touching the server. */
+        /* Longest side of the exported PNG, in pixels. The code is vector on the
+           page, so this can be raised freely for print without touching the server. */
         const PNG_SIZE = 2000;
+
+        const placeholders = {
+            qr: 'Enter text, URL, or any data...\nMultiple lines are supported.',
+            barcode: 'Enter the value to encode (single line)',
+        };
+
+        /* Show the options that belong to the chosen code type. */
+        function setType(type) {
+            const isBarcode = type === 'barcode';
+            const customEyes = document.getElementById('custom_eyes');
+
+            document.getElementById('barcode-options').style.display = isBarcode ? '' : 'none';
+            document.getElementById('custom-eyes-option').style.display = isBarcode ? 'none' : 'flex';
+            document.getElementById('eye-colors').style.display = !isBarcode && customEyes.checked ? '' : 'none';
+            document.getElementById('btn-generate-label').textContent = isBarcode ? 'Barcode' : 'QR Code';
+            document.getElementById('data').placeholder = placeholders[type];
+        }
+
+        function updateFormatHint() {
+            const option = document.getElementById('barcode_format').selectedOptions[0];
+            document.getElementById('format-hint').textContent = 'Accepts: ' + option.dataset.hint;
+        }
+
+        updateFormatHint();
+        setType(document.querySelector('input[name="type"]:checked').value);
 
         /* Rasterise the inline SVG through a canvas. Doing it here keeps the PNG
            export working without the imagick extension the server would need. */
@@ -699,9 +831,16 @@
             const svg = document.querySelector('#qr-preview svg');
             if (!svg) return;
 
+            // Barcodes are wide, QR codes square: scale the longest side to PNG_SIZE.
+            const box = svg.viewBox.baseVal;
+            const ratio = box && box.width ? box.height / box.width : 1;
+            const width = ratio <= 1 ? PNG_SIZE : Math.round(PNG_SIZE / ratio);
+            const height = ratio <= 1 ? Math.round(PNG_SIZE * ratio) : PNG_SIZE;
+            const isBarcode = svg.closest('.qr-preview').classList.contains('is-barcode');
+
             const clone = svg.cloneNode(true);
-            clone.setAttribute('width', PNG_SIZE);
-            clone.setAttribute('height', PNG_SIZE);
+            clone.setAttribute('width', width);
+            clone.setAttribute('height', height);
             clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
 
             // btoa() is latin1-only, so widen the markup to bytes before encoding.
@@ -715,15 +854,15 @@
 
             image.onload = function () {
                 const canvas = document.createElement('canvas');
-                canvas.width = PNG_SIZE;
-                canvas.height = PNG_SIZE;
-                canvas.getContext('2d').drawImage(image, 0, 0, PNG_SIZE, PNG_SIZE);
+                canvas.width = width;
+                canvas.height = height;
+                canvas.getContext('2d').drawImage(image, 0, 0, width, height);
 
                 canvas.toBlob(function (blob) {
                     const url = URL.createObjectURL(blob);
                     const link = document.createElement('a');
                     link.href = url;
-                    link.download = 'qrcode.png';
+                    link.download = isBarcode ? 'barcode.png' : 'qrcode.png';
                     link.click();
                     URL.revokeObjectURL(url);
                     button.disabled = false;
